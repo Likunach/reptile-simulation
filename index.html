@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ქვეწარმავლების ტემპერატურული რეგულაცია და მოძრაობა</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding: 10px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: #3c78d8;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+
+        .logo {
+            height: 40px;
+            width: 40px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-image: url('GSI logo.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+
+        .title {
+            font-size: 1.2em;
+            font-weight: bold;
+            text-align: center;
+            flex: 1;
+            margin: 0 15px;
+        }
+
+        .controls {
+            display: grid;
+            /* exactly 3 columns on desktop */
+            grid-template-columns: repeat(3, 1fr);
+            /* exactly 2 rows (we’re placing 6 cells) */
+            grid-template-rows: auto auto;
+            gap: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+
+        /* hide the “placeholder” cell so it doesn’t show a ghost box */
+        .control-group.empty {
+            background: transparent;
+            box-shadow: none;
+            pointer-events: none;
+        }
+
+        .control-group {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .control-group.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .control-label {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+            display: block;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .control-btn {
+            flex: 1;
+            min-width: 80px;
+            padding: 12px;
+            border: 2px solid #3c78d8;
+            background: white;
+            color: #3c78d8;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .control-btn.active {
+            background: #3c78d8;
+            color: white;
+        }
+
+        .control-btn:hover:not(.disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(60, 120, 216, 0.3);
+        }
+
+        .control-btn.movement {
+            background: #28a745;
+            border-color: #28a745;
+            color: white;
+        }
+
+        .control-btn.movement.stop {
+            background: #6c757d;
+            border-color: #6c757d;
+        }
+
+        .control-btn.movement:hover {
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+        }
+
+        .control-btn.movement.stop:hover {
+            box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+        }
+
+        .temperature-control, .speed-control {
+            margin-bottom: 20px;
+        }
+
+        .temp-slider, .speed-slider {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: linear-gradient(to right, #00bfff, #ffa500, #ff9900);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .speed-slider {
+            background: linear-gradient(to right, #3c78d8, #5a9bd4, #7db8e8);
+        }
+
+        .temp-slider::-webkit-slider-thumb, .speed-slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #3c78d8;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+
+        .temp-slider::-moz-range-thumb, .speed-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #3c78d8;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+
+        .temp-display, .speed-display {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        .simulation-area {
+            height: 600px; 
+            background: linear-gradient(to bottom, #87CEEB 0%, #90EE90 100%);
+            position: relative;
+            overflow: hidden;
+            margin: 20px;
+            border-radius: 15px;
+            border: 3px solid #3c78d8;
+        }
+
+        .reptile {
+            position: static;
+            transform: none;
+        }
+
+        .reptile-wrapper {
+            position: absolute;
+            top: 50%;
+            left: 50px;
+            transform: translateY(-50%)
+                        scale(1.5);
+            transform-origin: left center;
+        }
+
+
+        /* Realistic Lizard */
+        .lizard {
+            width: 150px;
+            height: 40px;
+        }
+
+        .lizard-body {
+            width: 100px;
+            height: 35px;
+            background: linear-gradient(135deg, #4a7c59 0%, #5d8c6b 50%, #6b9b73 100%);
+            border-radius: 18px;
+            position: relative;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+        }
+
+        .lizard-head {
+            width: 45px;
+            height: 25px;
+            background: linear-gradient(135deg, #4a7c59 0%, #5d8c6b 100%);
+            border-radius: 25px 12px 8px 12px;
+            position: absolute;
+            right: -35px;
+            top: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .lizard-head::after {
+            content: '';
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: #000;
+            border-radius: 50%;
+            top: 8px;
+            right: 8px;
+        }
+
+        .lizard-tail {
+            width: 60px;
+            height: 15px;
+            background: linear-gradient(135deg, #4a7c59 0%, #5d8c6b 100%);
+            border-radius: 8px 2px 2px 8px;
+            position: absolute;
+            left: -55px;
+            top: 10px;
+            transform-origin: right center;
+        }
+
+        .lizard-leg {
+            width: 18px;
+            height: 10px;
+            background: #4a7c59;
+            border-radius: 5px;
+            position: absolute;
+            transform-origin: center;
+        }
+
+        .front-left { top: -8px; right: 20px; }
+        .front-right { bottom: -8px; right: 20px; }
+        .back-left { top: -8px; left: 20px; }
+        .back-right { bottom: -8px; left: 20px; }
+
+        /* Realistic Snake */
+        .snake {
+            width: 200px;
+            height: 25px;
+            position: relative;
+        }
+
+        .snake-body {
+            display: flex;
+            flex-direction: row-reverse;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 2px; /* Adjust spacing between head and segments */
+            position: relative;
+            flex-wrap: nowrap;
+        }
+
+        .snake-segment {
+            width: 25px;
+            height: 25px;
+            background: linear-gradient(135deg, #8B4513 0%, #A0522D 50%, #CD853F 100%);
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            flex-shrink: 0;
+        }
+
+        .snake-head {
+            width: 30px;
+            height: 20px;
+            background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%);
+            border-radius: 15px 8px 4px 8px;
+            position: absolute;
+            right: -25px;
+            top: 2.5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            z-index: 15;
+        }
+
+        .snake-head::after {
+            content: '';
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: #000;
+            border-radius: 50%;
+            top: 6px;
+            right: 6px;
+        }
+
+        .segment-0 { left: 175px; top: 0px; z-index: 10; }
+        .segment-1 { left: 150px; top: 0px; z-index: 9; }
+        .segment-2 { left: 125px; top: 0px; z-index: 8; }
+        .segment-3 { left: 100px; top: 0px; z-index: 7; }
+        .segment-4 { left: 75px; top: 0px; z-index: 6; }
+        .segment-5 { left: 50px; top: 0px; z-index: 5; }
+        .segment-6 { left: 25px; top: 0px; z-index: 4; }
+        .segment-7 { left: 0px; top: 0px; z-index: 3; }
+        .segment-8 { left: -25px; top: 0px; z-index: 2; }
+
+        .temperature-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.95);
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: bold;
+            min-width: 180px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .body-temp {
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+
+        .cold { color: #0066cc; }
+        .cool { color: #3399ff; }
+        .warm { color: #ff9900; }
+        .hot { color: #ff6600; }
+
+        .info-panel {
+            background: #f8f9fa;
+            padding: 20px;
+            margin: 20px;
+            border-radius: 10px;
+            border-left: 5px solid #3c78d8;
+        }
+
+        .info-title {
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #3c78d8;
+        }
+
+        .limb-indicator {
+            background: rgba(255,255,255,0.95);
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-weight: bold;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .movement-status {
+            background: rgba(255,255,255,0.95);
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-weight: bold;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        /* Movement Animations */
+        @keyframes lizardWalk {
+            0% { transform: translateY(-50%) translateX(0px) rotate(0deg); }
+            25% { transform: translateY(-58%) translateX(200px) rotate(8deg); }
+            50% { transform: translateY(-42%) translateX(400px) rotate(0deg); }
+            75% { transform: translateY(-58%) translateX(600px) rotate(-8deg); }
+            100% { transform: translateY(-50%) translateX(800px) rotate(0deg); }
+        }
+
+        @keyframes lizardLegMove {
+            0%, 100% { transform: rotate(0deg); }
+            50% { transform: rotate(20deg); }
+        }
+
+        @keyframes snakeSlither {
+            0% { transform: translateY(-50%) translateX(0px) rotate(0deg); }
+            20% { transform: translateY(-65%) translateX(160px) rotate(20deg); }
+            40% { transform: translateY(-35%) translateX(320px) rotate(-15deg); }
+            60% { transform: translateY(-60%) translateX(480px) rotate(18deg); }
+            80% { transform: translateY(-40%) translateX(640px) rotate(-20deg); }
+            100% { transform: translateY(-50%) translateX(800px) rotate(0deg); }
+        }
+
+
+        @keyframes snakeWave {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+            100% { transform: translateY(0px); }
+        }
+
+        @keyframes tailWag {
+            0%, 100% { transform: rotate(0deg); }
+            50% { transform: rotate(20deg); }
+        }
+
+        /* Limb-less lizard movement */
+        @keyframes lizardSlither {
+            0% { transform: translateY(-50%) translateX(0px) rotate(0deg); }
+            16% { transform: translateY(-62%) translateX(130px) rotate(15deg); }
+            33% { transform: translateY(-38%) translateX(260px) rotate(-10deg); }
+            50% { transform: translateY(-58%) translateX(400px) rotate(12deg); }
+            66% { transform: translateY(-42%) translateX(530px) rotate(-15deg); }
+            83% { transform: translateY(-60%) translateX(660px) rotate(8deg); }
+            100% { transform: translateY(-50%) translateX(800px) rotate(0deg); }
+        }
+
+        @keyframes lizardBodyWave {
+            0% { transform: translateY(0px) rotate(0deg); }
+            25% { transform: translateY(-8px) rotate(18deg); }
+            50% { transform: translateY(4px) rotate(-12deg); }
+            75% { transform: translateY(-4px) rotate(15deg); }
+            100% { transform: translateY(0px) rotate(0deg); }
+        }
+
+        /* shivering animation */
+        @keyframes shiver {
+            0%, 100% { transform: translateX(0px); }
+            25% { transform: translateX(-1px); }
+            75% { transform: translateX(1px); }
+        }
+
+        @keyframes segmentBounce {
+            0%, 100% { transform: translateY(0); }
+            50%     { transform: translateY(-15px); }
+            }
+
+        .frozen .reptile, .cold .reptile {
+            animation: shiver 0.3s infinite;
+        }
+
+        /* Speed variations */
+        .moving.lizard.very-slow {
+            animation: lizardWalk 8s infinite linear;
+        }
+
+        .moving.lizard.slow {
+            animation: lizardWalk 6s infinite linear;
+        }
+
+        .moving.lizard.medium {
+            animation: lizardWalk 4s infinite linear;
+        }
+
+        .moving.lizard.fast {
+            animation: lizardWalk 2s infinite linear;
+        }
+
+        /* No limbs lizard moves like snake */
+        .moving.lizard.no-limbs.very-slow {
+            animation: lizardSlither 10s infinite linear;
+        }
+
+        .moving.lizard.no-limbs.slow {
+            animation: lizardSlither 7s infinite linear;
+        }
+
+        .moving.lizard.no-limbs.medium {
+            animation: lizardSlither 5s infinite linear;
+        }
+
+        .moving.lizard.no-limbs.fast {
+            animation: lizardSlither 3s infinite linear;
+        }
+
+        .moving.snake.very-slow {
+            animation: snakeSlither 9s infinite linear;
+        }
+
+        .moving.snake.slow {
+            animation: snakeSlither 6s infinite linear;
+        }
+
+        .moving.snake.medium {
+            animation: snakeSlither 4s infinite linear;
+        }
+
+        .moving.snake.fast {
+            animation: snakeSlither 2s infinite linear;
+        }
+
+        .moving .lizard-leg {
+            animation: lizardLegMove 1s infinite alternate;
+        }
+
+        .moving.fast .lizard-leg {
+            animation: lizardLegMove 0.5s infinite alternate;
+        }
+
+        .moving.medium .lizard-leg {
+            animation: lizardLegMove 0.8s infinite alternate;
+        }
+
+        .moving.slow .lizard-leg {
+            animation: lizardLegMove 1.8s infinite alternate;
+        }
+
+        .moving.very-slow .lizard-leg {
+            animation: lizardLegMove 3s infinite alternate;
+        }
+
+        .moving .lizard-tail {
+            animation: tailWag 2s infinite;
+        }
+
+        .moving .snake-segment {
+            animation: segmentBounce 2s infinite ease-in-out;
+        }
+
+        .moving.slow .snake-segment {
+            animation: segmentBounce 2s infinite ease-in-out;
+        }
+
+        .moving.medium .snake-segment {
+            animation: segmentBounce 2s infinite ease-in-out;
+        }
+
+        .moving.fast .snake-segment {
+            animation: segmentBounce 2s infinite ease-in-out;
+        }
+
+        .moving.very-slow .snake-segment {
+            animation: segmentBounce 2s infinite ease-in-out;
+        }
+
+        /* No-limbs lizard body wave */
+        .moving.lizard.no-limbs .lizard-body {
+            animation: lizardBodyWave 3s infinite;
+        }
+
+        .moving.lizard.no-limbs.slow .lizard-body {
+            animation: lizardBodyWave 4.5s infinite;
+        }
+
+        .moving.lizard.no-limbs.medium .lizard-body {
+            animation: lizardBodyWave 3s infinite;
+        }
+
+        .moving.lizard.no-limbs.fast .lizard-body {
+            animation: lizardBodyWave 1.8s infinite;
+        }
+
+        .moving.lizard.no-limbs.very-slow .lizard-body {
+            animation: lizardBodyWave 6s infinite;
+        }
+
+        /* Sluggish movement in cold */
+        .frozen.moving .lizard-leg {
+            animation: lizardLegMove 8s infinite alternate !important;
+        }
+
+        .frozen.moving .snake-segment {
+            animation: snakeWave 12s infinite !important;
+        }
+
+        /* Hyperactive movement in heat */
+        .hot.moving .lizard-leg {
+            animation: lizardLegMove 0.3s infinite alternate !important;
+        }
+
+        .hot.moving .snake-segment {
+            animation: snakeWave 0.8s infinite !important;
+        }
+
+        .hot.moving .lizard-tail {
+            animation: tailWag 0.5s infinite !important;
+        }
+
+        .snake-segment:nth-child(odd) {
+            animation-direction: reverse;
+        }
+
+        .moving .snake-segment {
+            animation: snakeWave 2.5s infinite;
+        }
+
+        .snake-segment.segment-0 { 
+            left: 175px; top: 0px; z-index: 10; 
+            animation-delay: 0s; 
+        }
+        .snake-segment.segment-1 { 
+            left: 150px; top: 0px; z-index: 9; 
+            animation-delay: 0.3s; 
+        }
+        .snake-segment.segment-2 { 
+            left: 125px; top: 0px; z-index: 8; 
+            animation-delay: 0.6s; 
+        }
+        .snake-segment.segment-3 { 
+            left: 100px; top: 0px; z-index: 7; 
+            animation-delay: 0.9s; 
+        }
+        .snake-segment.segment-4 { 
+            left: 75px; top: 0px; z-index: 6; 
+            animation-delay: 1.2s; 
+        }
+        .snake-segment.segment-5 { 
+            left: 50px; top: 0px; z-index: 5; 
+            animation-delay: 1.5s; 
+        }
+        .snake-segment.segment-6 { 
+            left: 25px; top: 0px; z-index: 4; 
+            animation-delay: 1.8s; 
+        }
+        .snake-segment.segment-7 { 
+            left: 0px; top: 0px; z-index: 3; 
+            animation-delay: 2.1s; 
+        }
+        .snake-segment.segment-8 { 
+            left: -25px; top: 0px; z-index: 2; 
+            animation-delay: 2.4s; 
+        }
+
+        .segment-0 { animation-delay: 0s; }
+        .segment-1 { animation-delay: 0.12s; }
+        .segment-2 { animation-delay: 0.24s; }
+        .segment-3 { animation-delay: 0.36s; }
+        .segment-4 { animation-delay: 0.48s; }
+        .segment-5 { animation-delay: 0.6s; }
+        .segment-6 { animation-delay: 0.72s; }
+        .segment-7 { animation-delay: 0.84s; }
+        .segment-8 { animation-delay: 0.96s; }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 5px;
+                border-radius: 10px;
+            }
+            
+            .controls {
+                grid-template-columns: 1fr;
+                grid-template-rows: unset;
+            }
+            
+            .header {
+                padding: 10px 15px;
+            }
+            
+            .title {
+                font-size: 1em;
+            }
+            
+            .simulation-area {
+                height: 400px;
+                margin: 15px;
+            }
+            
+            .button-group {
+                flex-direction: column;
+            }
+
+            .reptile-wrapper {
+                transform: translateY(-50%) scale(0.6);
+            }
+
+            .lizard {
+                width: 100px;
+                height: auto;
+            }
+
+            .snake {
+                width: 100px;
+                height: auto;
+            }
+
+           .snake-head {
+                width: 20px;
+                height: 20px;
+                position: absolute;
+                top: 40%;
+                left: 40%;
+                transform: translate(-50%, -50%);
+            }
+
+            .temperature-indicator,
+            .limb-indicator,
+            .movement-status {
+                font-size: 12px;
+                padding: 8px;
+                min-width: 120px; 
+            
+            }
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo"></div>
+            <div class="title">ქვეწარმავლების ტემპერატურული რეგულაცია და მოძრაობა</div>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label class="control-label">ქვეწარმავლის ტიპი:</label>
+                <div class="button-group">
+                    <button class="control-btn active" data-reptile="lizard">ხვლიკი</button>
+                    <button class="control-btn" data-reptile="snake">გველი</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">გარემოს ტემპერატურა:</label>
+                <div class="temperature-control">
+                    <input type="range" class="temp-slider" id="ambientTemp" min="0" max="45" value="25">
+                    <div class="temp-display">
+                        <span>0°C</span>
+                        <span id="currentTemp">25°C</span>
+                        <span>45°C</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">მოძრაობის კონტროლი:</label>
+                <div class="button-group">
+                    <button class="control-btn movement" id="movementBtn">მოძრაობის დაწყება</button>
+                </div>
+            </div>
+
+            <div class="control-group" id="limbsControl">
+                <label class="control-label">კიდურები (მხოლოდ ხვლიკისთვის):</label>
+                <div class="button-group">
+                    <button class="control-btn active" data-limbs="show">არსებობს</button>
+                    <button class="control-btn" data-limbs="hide">არ არსებობს</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">მოძრაობის სიჩქარე:</label>
+                <div class="speed-control">
+                    <input type="range" class="speed-slider" id="speedSlider" min="1" max="4" value="2">
+                    <div class="speed-display">
+                        <span>ძალიან ნელა</span>
+                        <span id="currentSpeed">ნელა</span>
+                        <span>სწრაფად</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="simulation-area" id="simulationArea">
+            <div class="reptile-wrapper">
+                <div class="reptile lizard" id="reptile">
+                    <div class="lizard-body">
+                        <div class="lizard-head"></div>
+                        <div class="lizard-tail"></div>
+                        <div class="lizard-leg front-left"></div>
+                        <div class="lizard-leg front-right"></div>
+                        <div class="lizard-leg back-left"></div>
+                        <div class="lizard-leg back-right"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="temperature-indicator">
+                <div class="body-temp" id="bodyTemp">სხეულის ტემპერატურა: 25°C</div>
+                <div id="tempStatus">ნორმალური</div>
+            </div>
+
+            <div class="limb-indicator" id="limbIndicator">
+                კიდურები: არსებობს
+            </div>
+
+            <div class="movement-status" id="movementStatus">
+                მოძრაობა: შეჩერებული
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-title">მნიშვნელოვანი ინფორმაცია:</div>
+            <div id="infoText">
+                ხვლიკები ფრინველებისა და ძუძუმწოვრებისგან განსხვავებით ვერ არეგულირებენ თავიანთ სხეულის ტემპერატურას. მათი სხეულის ტემპერატურა დამოკიდებულია გარემოს ტემპერატურაზე. ხვლიკები მოძრაობისთვის იყენებენ წინა და უკანა კიდურებს. ცივ ტემპერატურაზე მათი მოძრაობა ნელდება.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentReptile = 'lizard';
+        let ambientTemp = 25;
+        let bodyTemp = 25;
+        let targetBodyTemp = 25;
+        let isMoving = false;
+        let showLimbs = true;
+        let movementSpeed = 'slow';
+        let tempUpdateInterval;
+        let bodyTempUpdateInterval;
+
+        const reptileElement = document.getElementById('reptile');
+        const bodyTempElement = document.getElementById('bodyTemp');
+        const tempStatusElement = document.getElementById('tempStatus');
+        const limbIndicatorElement = document.getElementById('limbIndicator');
+        const movementStatusElement = document.getElementById('movementStatus');
+        const infoTextElement = document.getElementById('infoText');
+        const movementBtn = document.getElementById('movementBtn');
+        const ambientTempSlider = document.getElementById('ambientTemp');
+        const currentTempDisplay = document.getElementById('currentTemp');
+        const speedSlider = document.getElementById('speedSlider');
+        const currentSpeedDisplay = document.getElementById('currentSpeed');
+        const limbsControl = document.getElementById('limbsControl');
+
+        // Start body temperature update interval
+        bodyTempUpdateInterval = setInterval(updateBodyTemperature, 1000);
+
+        // Reptile type selection
+        document.querySelectorAll('[data-reptile]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('[data-reptile]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentReptile = btn.dataset.reptile;
+                updateReptileDisplay();
+            });
+        });
+
+        // Temperature control
+        ambientTempSlider.addEventListener('input', (e) => {
+            ambientTemp = parseInt(e.target.value);
+            targetBodyTemp = ambientTemp;
+            currentTempDisplay.textContent = ambientTemp + '°C';
+        });
+
+        speedSlider.addEventListener('input', (e) => {
+            const speedValue = parseInt(e.target.value);
+            const speedNames = ['ძალიან ნელა', 'ნელა', 'საშუალოდ', 'სწრაფად'];
+            const speedCodes = ['very-slow', 'slow', 'medium', 'fast'];
+            movementSpeed = speedCodes[speedValue - 1];
+            currentSpeedDisplay.textContent = speedNames[speedValue - 1];
+            updateMovement();
+        });
+
+        // Movement control
+        movementBtn.addEventListener('click', () => {
+            isMoving = !isMoving;
+            updateMovement();
+        });
+
+        // Limbs control
+        document.querySelectorAll('[data-limbs]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('[data-limbs]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                showLimbs = btn.dataset.limbs === 'show';
+                updateLimbsDisplay();
+                updateMovement();
+            });
+        });
+
+        function updateBodyTemperature() {
+            const tempDifference = targetBodyTemp - bodyTemp;
+            // Make temperature change SLOWER and more visible
+            const adjustmentRate = 0.1; // Changed from 0.3 to 0.1 for slower change
+            
+            if (Math.abs(tempDifference) > 0.1) { // More sensitive threshold
+                bodyTemp += tempDifference * adjustmentRate;
+                bodyTemp = Math.round(bodyTemp * 10) / 10;
+                
+                bodyTempElement.textContent = `სხეულის ტემპერატურა: ${bodyTemp.toFixed(1)}°C`;
+                updateTemperatureStatus();
+                updateMovement(); // Temperature affects movement immediately
+            }
+        }
+
+        function updateTemperatureStatus() {
+            let status = 'ნორმალური';
+            let className = 'warm';
+            
+            // Get reptile body element for color changes
+            const reptileBody = currentReptile === 'lizard' ? 
+                document.querySelector('.lizard-body') : 
+                document.querySelectorAll('.snake-segment');
+            
+            if (bodyTemp < 5) {
+                status = 'გაყინული';
+                className = 'frozen';
+                // Very cold - blue/purple tint
+                if (currentReptile === 'lizard') {
+                    reptileBody.style.filter = 'hue-rotate(200deg) brightness(0.7)';
+                } else {
+                    reptileBody.forEach(segment => segment.style.filter = 'hue-rotate(200deg) brightness(0.7)');
+                }
+            } else if (bodyTemp < 10) {
+                status = 'ძალიან ცივი';
+                className = 'cold';
+                // Cold - blue tint
+                if (currentReptile === 'lizard') {
+                    reptileBody.style.filter = 'hue-rotate(180deg) brightness(0.8)';
+                } else {
+                    reptileBody.forEach(segment => segment.style.filter = 'hue-rotate(180deg) brightness(0.8)');
+                }
+            } else if (bodyTemp < 15) {
+                status = 'ცივი';
+                className = 'cool';
+                // Cool - slight blue tint
+                if (currentReptile === 'lizard') {
+                    reptileBody.style.filter = 'hue-rotate(30deg) brightness(0.9)';
+                } else {
+                    reptileBody.forEach(segment => segment.style.filter = 'hue-rotate(30deg) brightness(0.9)');
+                }
+            } else if (bodyTemp > 35) {
+                status = 'ძალიან ცხელი';
+                className = 'hot';
+                // Very hot - red/orange tint
+                if (currentReptile === 'lizard') {
+                    reptileBody.style.filter = 'hue-rotate(-30deg) brightness(1.2) saturate(1.3)';
+                } else {
+                    reptileBody.forEach(segment => segment.style.filter = 'hue-rotate(-30deg) brightness(1.2) saturate(1.3)');
+                }
+            } else if (bodyTemp > 30) {
+                status = 'ცხელი';
+                className = 'warm';
+                // Hot - orange tint
+                if (currentReptile === 'lizard') {
+                    reptileBody.style.filter = 'hue-rotate(-15deg) brightness(1.1)';
+                } else {
+                    reptileBody.forEach(segment => segment.style.filter = 'hue-rotate(-15deg) brightness(1.1)');
+                }
+            } else {
+                // Normal temperature - reset to original colors
+                if (currentReptile === 'lizard') {
+                    reptileBody.style.filter = 'none';
+                } else {
+                    reptileBody.forEach(segment => segment.style.filter = 'none');
+                }
+            }
+            
+            tempStatusElement.textContent = status;
+            bodyTempElement.className = `body-temp ${className}`;
+        }
+
+        function updateReptileDisplay() {
+            if (currentReptile === 'lizard') {
+                reptileElement.innerHTML = `
+                    <div class="lizard-body">
+                        <div class="lizard-head"></div>
+                        <div class="lizard-tail"></div>
+                        <div class="lizard-leg front-left"></div>
+                        <div class="lizard-leg front-right"></div>
+                        <div class="lizard-leg back-left"></div>
+                        <div class="lizard-leg back-right"></div>
+                    </div>
+                `;
+                reptileElement.className = 'reptile lizard';
+                limbsControl.classList.remove('disabled');
+                infoTextElement.textContent = 'ხვლიკები ფრინველებისა და ძუძუმწოვრებისგან განსხვავებით ვერ არეგულირებენ თავიანთ სხეულის ტემპერატურას. მათი სხეულის ტემპერატურა დამოკიდებულია გარემოს ტემპერატურაზე. ხვლიკები მოძრაობისთვის იყენებენ წინა და უკანა კიდურებს. ცივ ტემპერატურაზე მათი მოძრაობა მნიშვნელოვნად ნელდება, სითბოში კი პირიქით მათი სიჩქარე იზრდება.';
+            } else {
+                reptileElement.innerHTML = `
+                    <div class="snake-body">
+                        <div class="snake-head"></div>
+                        <div class="snake-segment segment-0"></div>
+                        <div class="snake-segment segment-1"></div>
+                        <div class="snake-segment segment-2"></div>
+                        <div class="snake-segment segment-3"></div>
+                        <div class="snake-segment segment-4"></div>
+                        <div class="snake-segment segment-5"></div>
+                        <div class="snake-segment segment-6"></div>
+                        <div class="snake-segment segment-7"></div>
+                        <div class="snake-segment segment-8"></div>
+                    </div>
+                `;
+                reptileElement.className = 'reptile snake';
+                limbsControl.classList.add('disabled');
+                showLimbs = true; // Reset limbs for snake
+                infoTextElement.textContent = 'გველები ფრინველებისა და ძუძუმწოვრებისგან განსხვავებით ვერ არეგულირებენ თავიანთ სხეულის ტემპერატურას. მათი სხეულის ტემპერატურა დამოკიდებულია გარემოს ტემპერატურაზე. გველები კიდურების გარეშე მოძრაობენ, ისინი იყენებენ მთელ სხეულს ტალღისებური მოძრაობისთვის. ცივ ტემპერატურაზე მათი მოძრაობა მნიშვნელოვნად ნელდება.';
+            }
+            updateLimbsDisplay();
+            updateMovement();
+        }
+
+        function updateLimbsDisplay() {
+            if (currentReptile === 'lizard') {
+                const legs = reptileElement.querySelectorAll('.lizard-leg');
+                legs.forEach(leg => {
+                    leg.style.display = showLimbs ? 'block' : 'none';
+                });
+                
+                limbIndicatorElement.textContent = showLimbs ? 'კიდურები: არსებობს' : 'კიდურები: არ არსებობს';
+                
+                // Add no-limbs class for different movement
+                if (!showLimbs) {
+                    reptileElement.classList.add('no-limbs');
+                } else {
+                    reptileElement.classList.remove('no-limbs');
+                }
+            } else {
+                limbIndicatorElement.textContent = 'კიდურები: არ არსებობს (გველი)';
+            }
+        }
+
+        function updateMovement() {
+            // Remove all classes
+            reptileElement.classList.remove('moving', 'very-slow', 'slow', 'medium', 'fast', 'frozen', 'cold', 'cool', 'warm', 'hot');
+            
+            // Add temperature class
+            let tempClass = 'warm';
+            if (bodyTemp < 5) tempClass = 'frozen';
+            else if (bodyTemp < 10) tempClass = 'cold';
+            else if (bodyTemp < 15) tempClass = 'cool';
+            else if (bodyTemp > 35) tempClass = 'hot';
+            else if (bodyTemp > 30) tempClass = 'warm';
+            
+            reptileElement.classList.add(tempClass);
+            
+            if (isMoving) {
+                let effectiveSpeed = movementSpeed;
+                
+                // Calculate speed multiplier based on temperature (smoother transitions)
+                let speedMultiplier = 1.0;
+                
+                // Cold temperature effects - very gradual
+                if (bodyTemp <= 15) {
+                    if (bodyTemp <= 1) {
+                        speedMultiplier = 0; // Complete stop
+                    } else if (bodyTemp <= 3) {
+                        speedMultiplier = 0.1;
+                    } else if (bodyTemp <= 6) {
+                        speedMultiplier = 0.3;
+                    } else if (bodyTemp <= 10) {
+                        speedMultiplier = 0.5;
+                    } else if (bodyTemp <= 13) {
+                        speedMultiplier = 0.7;
+                    } else {
+                        speedMultiplier = 0.85;
+                    }
+                }
+                
+                // Hot temperature effects - gradual increase to optimal, then gradual decrease
+                else if (bodyTemp >= 30) {
+                    if (bodyTemp >= 41) {
+                        speedMultiplier = 0; // Complete stop from overheating
+                    } else if (bodyTemp >= 39.5) {
+                        speedMultiplier = 0.2;
+                    } else if (bodyTemp >= 39) {
+                        speedMultiplier = 0.4;
+                    } else if (bodyTemp >= 38.5) {
+                        speedMultiplier = 0.7;
+                    } else if (bodyTemp >= 38) {
+                        speedMultiplier = 0.9; // Starting to slow down
+                    } else if (bodyTemp >= 36) {
+                        speedMultiplier = 1.1; // Slight boost in optimal range
+                    } else if (bodyTemp >= 35) {
+                        speedMultiplier = 1.05; // Small boost
+                    } else if (bodyTemp >= 32) {
+                        speedMultiplier = 1.0; // Normal
+                    } else {
+                        speedMultiplier = 0.95; // Slightly slower
+                    }
+                }
+                
+                // Apply very subtle speed adjustments
+                if (speedMultiplier === 0) {
+                    reptileElement.classList.remove('moving');
+                    let reason = bodyTemp <= 1 ? 'გაყინულია' : 'გადახურებულია';
+                    movementStatusElement.textContent = `მოძრაობა: შეუძლებელია (${reason})`;
+                    return;
+                } else if (speedMultiplier >= 1.05) {
+                    // Only slight speed enhancement in optimal range
+                    if (movementSpeed === 'very-slow') effectiveSpeed = 'slow';
+                    else if (movementSpeed === 'slow') effectiveSpeed = 'medium';
+                    // Don't enhance beyond medium to avoid jarring transitions
+                } else if (speedMultiplier <= 0.3) {
+                    effectiveSpeed = 'very-slow';
+                } else if (speedMultiplier <= 0.5) {
+                    effectiveSpeed = movementSpeed === 'fast' ? 'slow' : 'very-slow';
+                } else if (speedMultiplier <= 0.7) {
+                    if (movementSpeed === 'fast') effectiveSpeed = 'medium';
+                    else if (movementSpeed === 'medium') effectiveSpeed = 'slow';
+                    else effectiveSpeed = 'very-slow';
+                } else if (speedMultiplier <= 0.9) {
+                    // Minor speed reduction
+                    if (movementSpeed === 'fast') effectiveSpeed = 'medium';
+                    else effectiveSpeed = movementSpeed;
+                }
+                
+                reptileElement.classList.add('moving', effectiveSpeed);
+                movementBtn.textContent = 'მოძრაობის შეჩერება';
+                movementBtn.classList.add('stop');
+                
+                // Show subtle temperature effect in status
+                let speedText = getCurrentSpeedText(effectiveSpeed);
+                if (speedMultiplier > 1.0) {
+                    speedText += ' +'; // Just a small indicator
+                } else if (speedMultiplier < 0.9) {
+                    let tempEffect = bodyTemp < 15 ? ' (ცივი)' : ' (ცხელი)';
+                    speedText += tempEffect;
+                }
+                movementStatusElement.textContent = `მოძრაობა: ${speedText}`;
+            } else {
+                movementBtn.textContent = 'მოძრაობის დაწყება';
+                movementBtn.classList.remove('stop');
+                movementStatusElement.textContent = 'მოძრაობა: შეჩერებული';
+            }
+        }
+
+        function getCurrentSpeedText(speed) {
+            const speedTexts = {
+                'very-slow': 'ძალიან ნელა',
+                'slow': 'ნელა',
+                'medium': 'საშუალოდ',
+                'fast': 'სწრაფად'
+            };
+            return speedTexts[speed] || 'ნელა';
+        }
+
+        // Initialize display
+        updateReptileDisplay();
+        updateTemperatureStatus();
+        updateLimbsDisplay();
+        updateMovement();
+
+        // Update current temperature display
+        currentTempDisplay.textContent = ambientTemp + '°C';
+    </script>
+</body>
+</html>
